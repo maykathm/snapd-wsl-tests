@@ -53,7 +53,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
@@ -135,7 +135,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
@@ -262,7 +262,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
