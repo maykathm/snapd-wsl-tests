@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Canonical Ltd.
 
 name: Smoke
+run-name: Smoke test with snapd from channel ${{ inputs.snapd-snap-channel }} or revision ${{ inputs.snapd-snap-revision }}
 
 on:
   push:
