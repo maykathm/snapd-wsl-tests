@@ -5,7 +5,7 @@ name: Setup WSL wsl-distro-name
 author: Zygmunt Krynicki
 description: |
   Download a WSL wsl-distro-name rootfs, import it into the system, optionally
-  enable systemd, and initialize with cloud-init.
+  enable systemd, and initialize by hand.
 inputs:
   wsl-distro-name:
     description: Name of wsl-distro-name instance
@@ -28,30 +28,6 @@ inputs:
     description: Explicitly enable systemd boot in the wsl-distro-name
     required: false
     default: "false"
-  wsl-enable-cloud-init-hack:
-    description: Enable cloud-init for WSL (hack)
-    required: false
-    default: "false"
-  cloud-init-user-data:
-    description: Text of the cloud-init user-data file
-    required: false
-    default: |
-      #cloud-config
-
-      locale: en_US
-
-      users:
-        - name: user
-          gecos: user
-          primary_group: user
-          lock_passwd: false
-          sudo: ALL=(ALL) NOPASSWD:ALL
-          groups:
-            - users
-            - admin
-            - lxd # For using LXD without sudo
-            - docker # For using Docker without sudo
-          shell: /bin/bash
 outputs:
   wsl-workspace-path:
     description: Path of the GitHub workspace inside WSL
@@ -155,76 +131,14 @@ runs:
           exit 1
         }
 
-    - name: Configure ${{ inputs.distro-name }} to support cloud-init (hacks)
+    - name: Setup ${{ inputs.distro-name }} WSL instance
       shell: pwsh
-      if: ${{ fromJSON(inputs.wsl-enable-cloud-init-hack) }}
       env:
         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
       run: |
         Set-StrictMode -version latest
 
-        Write-Output "Adding ubuntu-wsl-dev PPA to ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec add-apt-repository -y ppa:ubuntu-wsl-dev/ppa"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot add ubuntu-wsl-dev PPA to ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-        Write-Output "Installing wsl-setup and cloud-init in ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec env DEBIAN_FRONTEND=noninteractive apt install -y wsl-setup cloud-init"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot install wsl-setup and cloud-init in ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-        Write-Output "Installing enabling cloud-init.service and cloud-init-local.service in ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec systemctl --root=/ enable cloud-init.service cloud-init-local.service"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot enable cloud-init.service and cloud-init-local.service in ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-    - name: Setup ${{ inputs.distro-name }} WSL instance with cloud-init
-      shell: pwsh
-      env:
-        WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        CLOUD_INIT_USER_DATA: ${{ inputs.cloud-init-user-data }}
-      run: |
-        Set-StrictMode -version latest
-
-        Write-Output "Preparing cloud-init configuration for WSL."
-        if ( -not ( Test-Path -PathType Container -LiteralPath "${Env:USERPROFILE}\.cloud-init" ) ) {
-          New-Item -ItemType Directory -Path ${Env:USERPROFILE} -Name ".cloud-init"
-          if ( ! $? ) {
-            Write-Error "Cannot create .cloud-init directory."
-            exit 1
-          }
-        }
-        New-Item -Force -ItemType File -Path "${Env:USERPROFILE}\.cloud-init" -Name "${Env:WSL_DISTRO_NAME}.user-data" -Value ${Env:CLOUD_INIT_USER_DATA}
-        if ( ! $? ) {
-          Write-Error "Cannot create cloud-init user-data file for ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-        if ( "$${{ inputs.wsl-enable-cloud-init-hack }}" -eq "true" || "$${{ inputs.wsl-enable-systemd }}" -eq "true" ) {
+        if ("$${{ inputs.wsl-enable-systemd }}" -eq "true" ) {
           Write-Output "Terminating ${Env:WSL_DISTRO_NAME} for earlier changes to take effect..."
           Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate ${Env:WSL_DISTRO_NAME}"
           if ( ! $? ) {
@@ -233,29 +147,55 @@ runs:
           }
         }
 
-        Write-Output "Starting ${Env:WSL_DISTRO_NAME} and waiting for cloud-init to finish..."
+        Write-Output "Adding system group for docker."
         $wslArgs=@(
           "--distribution ${Env:WSL_DISTRO_NAME}"
           "--user root"
           "--cd /"
-          "--exec cloud-init status --wait"
+          "groupadd --system docker"
         )
         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
         if ( ! $? ) {
-          Write-Error "Cannot start ${Env:WSL_DISTRO_NAME} and finish cloud-init process."
+          Write-Error "Cannot add docker system group."
           exit 1
         }
 
-        Write-Output "Validating cloud-init schema."
+        Write-Output "Adding system group for LXD."
         $wslArgs=@(
           "--distribution ${Env:WSL_DISTRO_NAME}"
           "--user root"
           "--cd /"
-          "--exec cloud-init schema --system"
+          "groupadd --system lxd"
         )
         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
         if ( ! $? ) {
-          Write-Error "Cannot validate cloud-init schema of ${Env:WSL_DISTRO_NAME}."
+          Write-Error "Cannot add lxd system group."
+          exit 1
+        }
+
+        Write-Output "Adding test user 'user'."
+        $wslArgs=@(
+          "--distribution ${Env:WSL_DISTRO_NAME}"
+          "--user root"
+          "--cd /"
+          "useradd --create-home --skel /etc/skel --groups users,admin,lxd,docker --shell=/bin/bash user"
+        )
+        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
+        if ( ! $? ) {
+          Write-Error "Cannot add test user 'user'."
+          exit 1
+        }
+
+        Write-Output "Allow test user 'user' to use sudo."
+        $wslArgs=@(
+          "--distribution ${Env:WSL_DISTRO_NAME}"
+          "--user root"
+          "--cd /"
+          "echo 'user ALL= NOPASSWD: ALL' >/etc/sudoers.d/user.conf"
+        )
+        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
+        if ( ! $? ) {
+          Write-Error "Cannot allow test user 'user' to use sudo."
           exit 1
         }
 

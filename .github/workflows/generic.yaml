@@ -23,10 +23,6 @@ on:
         required: false
         type: boolean
         default: false
-      wsl-enable-cloud-init-hack:
-        required: false
-        type: boolean
-        default: false
       wsl-msi-url:
         required: false
         type: string
@@ -57,7 +53,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
@@ -65,7 +61,6 @@ jobs:
           wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
           wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
           wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
-          wsl-enable-cloud-init-hack: ${{ inputs.wsl-enable-cloud-init-hack }}
 
       - name: Install snapd snap from a channel
         uses: ./.github/actions/install-snap
@@ -140,7 +135,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
@@ -148,7 +143,6 @@ jobs:
           wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
           wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
           wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
-          wsl-enable-cloud-init-hack: ${{ inputs.wsl-enable-cloud-init-hack }}
 
       - name: Install snapd snap from a channel
         uses: ./.github/actions/install-snap
@@ -268,7 +262,7 @@ jobs:
       - name: Install WSL
         uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and run cloud-init
+      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
         uses: ./.github/actions/setup-distro
         with:
@@ -276,7 +270,6 @@ jobs:
           wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
           wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
           wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
-          wsl-enable-cloud-init-hack: ${{ inputs.wsl-enable-cloud-init-hack }}
 
       - name: Install snapd snap from a channel
         uses: ./.github/actions/install-snap
