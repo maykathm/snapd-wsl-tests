@@ -28,10 +28,6 @@ inputs:
     description: Explicitly enable systemd boot in the wsl-distro-name
     required: false
     default: "false"
-  wsl-enable-cloud-init-hack:
-    description: Enable cloud-init for WSL (hack)
-    required: false
-    default: "false"
   cloud-init-user-data:
     description: Text of the cloud-init user-data file
     required: false
@@ -155,53 +151,6 @@ runs:
           exit 1
         }
 
-    - name: Configure ${{ inputs.distro-name }} to support cloud-init (hacks)
-      shell: pwsh
-      if: ${{ fromJSON(inputs.wsl-enable-cloud-init-hack) }}
-      env:
-        WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-      run: |
-        Set-StrictMode -version latest
-
-        Write-Output "Adding ubuntu-wsl-dev PPA to ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec add-apt-repository -y ppa:ubuntu-wsl-dev/ppa"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot add ubuntu-wsl-dev PPA to ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-        Write-Output "Installing wsl-setup and cloud-init in ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec env DEBIAN_FRONTEND=noninteractive apt install -y wsl-setup cloud-init"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot install wsl-setup and cloud-init in ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
-        Write-Output "Installing enabling cloud-init.service and cloud-init-local.service in ${Env:WSL_DISTRO_NAME}..."
-        $wslArgs=@(
-          "--distribution ${Env:WSL_DISTRO_NAME}"
-          "--user root"
-          "--cd /"
-          "--exec systemctl --root=/ enable cloud-init.service cloud-init-local.service"
-        )
-        Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
-        if ( ! $? ) {
-          Write-Error "Cannot enable cloud-init.service and cloud-init-local.service in ${Env:WSL_DISTRO_NAME}."
-          exit 1
-        }
-
     - name: Setup ${{ inputs.distro-name }} WSL instance with cloud-init
       shell: pwsh
       env:
@@ -224,7 +173,7 @@ runs:
           exit 1
         }
 
-        if ( "$${{ inputs.wsl-enable-cloud-init-hack }}" -eq "true" || "$${{ inputs.wsl-enable-systemd }}" -eq "true" ) {
+        if ("$${{ inputs.wsl-enable-systemd }}" -eq "true" ) {
           Write-Output "Terminating ${Env:WSL_DISTRO_NAME} for earlier changes to take effect..."
           Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate ${Env:WSL_DISTRO_NAME}"
           if ( ! $? ) {

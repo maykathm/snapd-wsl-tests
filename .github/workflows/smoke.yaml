@@ -33,12 +33,10 @@ jobs:
       matrix:
         lts: [false]
         wsl-enable-systemd: [false]
-        wsl-enable-cloud-init-hack: [false]
         include:
           - codename: jammy
             version-id: "22.04"
             wsl-enable-systemd: true
-            wsl-enable-cloud-init-hack: true
           - codename: noble
             version-id: "24.04"
     uses: ./.github/workflows/generic.yaml
@@ -48,6 +46,5 @@ jobs:
       wsl-rootfs-file: ubuntu-${{ matrix.codename }}-wsl-amd64-wsl.rootfs.tar.gz
       wsl-distro-name: Test-Ubuntu-${{ matrix.version-id }}
       wsl-enable-systemd: ${{ matrix.wsl-enable-systemd }}
-      wsl-enable-cloud-init-hack: ${{ matrix.wsl-enable-cloud-init-hack }}
       snapd-snap-revision: ${{ github.event.inputs.snapd-snap-revision != 0 && fromJSON(github.event.inputs.snapd-snap-revision) || 0 }}
       snapd-snap-channel: ${{ github.event.inputs.snapd-snap-channel != '' && github.event.inputs.snapd-snap-channel || 'latest/stable' }}
