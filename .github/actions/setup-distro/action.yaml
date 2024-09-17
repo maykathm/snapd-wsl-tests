@@ -123,7 +123,7 @@ runs:
           "--distribution ${Env:WSL_DISTRO_NAME}"
           "--user root"
           "--cd /"
-          "printf '[boot]\nsystemd=true\n' > /etc/wsl.conf"
+          "printf '[boot]\nsystemd=true\n' >> /etc/wsl.conf"
         )
         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList $wslArgs
         if ( ! $? ) {
