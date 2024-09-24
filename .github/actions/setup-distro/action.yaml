@@ -115,21 +115,26 @@ runs:
           exit 1
         }
 
+        Write-Output "Terminating ${Env:WSL_DISTRO_NAME} for earlier changes to take effect..."
+        wsl --terminate "${Env:WSL_DISTRO_NAME}"
+        if ( ! $? ) {
+          Write-Error "Cannot terminate ${Env:WSL_DISTRO_NAME} instance."
+          exit 1
+        }
+
+        Write-Output "Checking if systemd is running"
+        wsl `
+          --distribution "${Env:WSL_DISTRO_NAME}" `
+          --user root `
+          --cd / `
+          systemctl is-system-running
+
     - name: Setup ${{ inputs.distro-name }} WSL instance
       shell: pwsh
       env:
         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
       run: |
         Set-StrictMode -version latest
-
-        if ("$${{ inputs.wsl-enable-systemd }}" -eq "true" ) {
-          Write-Output "Terminating ${Env:WSL_DISTRO_NAME} for earlier changes to take effect..."
-          Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate ${Env:WSL_DISTRO_NAME}"
-          if ( ! $? ) {
-            Write-Error "Cannot terminate ${Env:WSL_DISTRO_NAME} instance."
-            exit 1
-          }
-        }
 
         Write-Output "Adding system group for docker."
         $wslArgs=@(
