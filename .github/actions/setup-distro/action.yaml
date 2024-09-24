@@ -77,6 +77,10 @@ runs:
       run: |
         Set-StrictMode -version latest
 
+        if ( -not ( Test-Path -PathType Container -LiteralPath ${Env:WSL_VMS_DIR} ) ) {
+          New-Item -ItemType Directory -Name ${Env:WSL_VMS_DIR}
+        }
+
         Write-Output "Importing ${Env:WSL_ROOTFSES_DIR}\${Env:WSL_ROOTFS_FILE} RootFS into WSL..."
         $wslArgs=@(
           "--import ${Env:WSL_DISTRO_NAME}"
