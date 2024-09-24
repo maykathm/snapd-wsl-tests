@@ -77,7 +77,7 @@ runs:
       run: |
         Set-StrictMode -version latest
 
-        Write-Output "Importing ${Env:WSL_ROOTFS_FILE} RootFS into WSL..."
+        Write-Output "Importing ${Env:WSL_ROOTFSES_DIR}\${Env:WSL_ROOTFS_FILE} RootFS into WSL..."
         $wslArgs=@(
           "--import ${Env:WSL_DISTRO_NAME}"
           ".\${Env:WSL_VMS_DIR}\${Env:WSL_DISTRO_NAME}"
