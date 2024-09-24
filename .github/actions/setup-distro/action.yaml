@@ -77,27 +77,11 @@ runs:
       run: |
         Set-StrictMode -version latest
 
-        Write-Output "Preparing WSL configuration file."
-        $WslConfig = @'
-        [wsl2]
-        vmIdleTimeout = -1
-        '@
-
-        New-Item -Force -ItemType File -Path "${Env:USERPROFILE}" -Name ".wslconfig" -Value "$WslConfig"
-        if ( ! $? ) {
-          Write-Error "Cannot create WSL configuration file."
-          exit 1
-        }
-
         if ( -not ( Test-Path -PathType Container -LiteralPath ${Env:WSL_VMS_DIR} ) ) {
           New-Item -ItemType Directory -Name ${Env:WSL_VMS_DIR}
-          if ( ! $? ) {
-            Write-Error "Cannot create ${Env:WSL_VMS_DIR} directory."
-            exit 1
-          }
         }
 
-        Write-Output "Importing ${Env:WSL_ROOTFS_FILE} RootFS into WSL..."
+        Write-Output "Importing ${Env:WSL_ROOTFSES_DIR}\${Env:WSL_ROOTFS_FILE} RootFS into WSL..."
         $wslArgs=@(
           "--import ${Env:WSL_DISTRO_NAME}"
           ".\${Env:WSL_VMS_DIR}\${Env:WSL_DISTRO_NAME}"

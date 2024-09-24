@@ -14,6 +14,21 @@ inputs:
     description: Name of the WSL installer
     required: false
     default: wsl.2.2.4.0.x64.msi
+  # Remaining inputs describe wslconfig file:
+  # https://learn.microsoft.com/en-us/windows/wsl/wsl-config
+  # Only a small subset is implemented, as needed.
+  wslconfig-kernel:
+    description: Path to the Linux kernel file stored on the Windows file system
+    required: false
+    default: ""
+  wslconfig-kernel-command-line:
+    description: Path to the Linux kernel file stored on the Windows file system
+    required: false
+    default: ""
+  wslconfig-vm-idle-timeout:
+    description: Number of millisceconds to wait before shutting down an idle instance
+    required: false
+    default: 60000
 branding:
   icon: download
   color: orange
@@ -58,5 +73,26 @@ runs:
         }
         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--status"
         if ( ! $? ) {
+          exit 1
+        }
+
+    - name: Create a .wslconfig file
+      shell: pwsh
+      run: |
+        Set-StrictMode -version latest
+
+        Write-Output "Preparing WSL configuration file."
+        # This is expanded using single quote at string, since the expansion is
+        # done by GitHub logic, not powershell.
+        $WslConfig = @'
+        [wsl2]
+        ${{ inputs.wslconfig-vm-idle-timeout != '' && format('vmIdleTimeout = {0}', inputs.wslconfig-vm-idle-timeout) || '# vmIdleTimeout is not set' }}
+        ${{ inputs.wslconfig-kernel != '' && format('kernel = {0}', inputs.wslconfig-kernel) || '# kernel is not set' }}
+        ${{ inputs.wslconfig-kernel-command-line != '' && format('kernelCommandLine = {0}', inputs.wslconfig-kernel-command-line) || '# kernelCommandLine is not set' }}
+        '@
+
+        New-Item -Force -ItemType File -Path "${Env:USERPROFILE}" -Name ".wslconfig" -Value "$WslConfig"
+        if ( ! $? ) {
+          Write-Error "Cannot create WSL configuration file."
           exit 1
         }
