@@ -89,10 +89,12 @@ runs:
         ${{ inputs.wslconfig-vm-idle-timeout != '' && format('vmIdleTimeout = {0}', inputs.wslconfig-vm-idle-timeout) || '# vmIdleTimeout is not set' }}
         ${{ inputs.wslconfig-kernel != '' && format('kernel = {0}', inputs.wslconfig-kernel) || '# kernel is not set' }}
         ${{ inputs.wslconfig-kernel-command-line != '' && format('kernelCommandLine = {0}', inputs.wslconfig-kernel-command-line) || '# kernelCommandLine is not set' }}
-        '@
+        '@.Replace('\', '\\')
 
         New-Item -Force -ItemType File -Path "${Env:USERPROFILE}" -Name ".wslconfig" -Value "$WslConfig"
         if ( ! $? ) {
           Write-Error "Cannot create WSL configuration file."
           exit 1
         }
+
+        type "${Env:USERPROFILE}/.wslconfig"
