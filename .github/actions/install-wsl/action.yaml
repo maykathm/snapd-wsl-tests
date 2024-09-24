@@ -28,7 +28,7 @@ inputs:
   wslconfig-vm-idle-timeout:
     description: Number of millisceconds to wait before shutting down an idle instance
     required: false
-    default: 60000
+    default: ""
 branding:
   icon: download
   color: orange
