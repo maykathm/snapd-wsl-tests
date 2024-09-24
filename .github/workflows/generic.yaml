@@ -52,6 +52,8 @@ jobs:
 
       - name: Install WSL
         uses: ./.github/actions/install-wsl
+        with:
+          wslconfig-vm-idle-timeout: -1
 
       - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
         id: setup-distro
