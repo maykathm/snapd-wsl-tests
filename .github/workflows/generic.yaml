@@ -417,31 +417,6 @@ jobs:
           wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
           wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
 
-      - name: Mount securityfs, start apparmor and restart snapd
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} uname -a
-          wsl --distribution ${Env:WSL_DISTRO_NAME} mount -t securityfs securityfs /sys/kernel/security
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start snapd.apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl restart snapd.service
-
-      - name: Inspect the state of AppArmor
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/self/mountinfo
-          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/cmdline
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-enabled
-          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-status
-          wsl --distribution ${Env:WSL_DISTRO_NAME} ls -l /sys/kernel/security/apparmor/
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snapd.apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap debug sandbox-features
-
       - name: Inspect version of snapd before installing snapd snap
         env:
           WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
@@ -478,6 +453,31 @@ jobs:
         run: |
           Set-StrictMode -version latest
           wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
+
+      - name: Mount securityfs, start apparmor and restart snapd
+        env:
+          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+        run: |
+          Set-StrictMode -version latest
+          wsl --distribution ${Env:WSL_DISTRO_NAME} uname -a
+          wsl --distribution ${Env:WSL_DISTRO_NAME} mount -t securityfs securityfs /sys/kernel/security
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start apparmor.service
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start snapd.apparmor.service
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl restart snapd.service
+
+      - name: Inspect the state of AppArmor
+        env:
+          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+        run: |
+          Set-StrictMode -version latest
+          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/self/mountinfo
+          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/cmdline
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status apparmor.service
+          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-enabled
+          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-status
+          wsl --distribution ${Env:WSL_DISTRO_NAME} ls -l /sys/kernel/security/apparmor/
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snapd.apparmor.service
+          wsl --distribution ${Env:WSL_DISTRO_NAME} snap debug sandbox-features
 
       - name: Install core snap
         uses: ./.github/actions/install-snap
