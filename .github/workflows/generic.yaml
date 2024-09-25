@@ -459,6 +459,9 @@ jobs:
           WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
         run: |
           Set-StrictMode -version latest
+          # XXX: This probably papers over a bug elsewhere.
+          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl daemon-reload
+          # Show interesting things.
           wsl --distribution ${Env:WSL_DISTRO_NAME} uname -a
           wsl --distribution ${Env:WSL_DISTRO_NAME} mount -t securityfs securityfs /sys/kernel/security
           wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start apparmor.service
