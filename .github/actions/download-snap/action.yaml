@@ -46,6 +46,7 @@ runs:
       run: |
         Set-StrictMode -version latest
         Add-Content -LiteralPath ${Env:GITHUB_OUTPUT} -Value "snap-revision=${Env:SNAP_REVISION}"
+        Add-Content -LiteralPath ${Env:GITHUB_ENV} -Value "SNAP_REVISION=${Env:SNAP_REVISION}"
         Write-Output "Snap ${Env:SNAP_NAME} using fixed revision ${Env:SNAP_REVISION}."
     - name: Query the Snap Store
       id: query-store
@@ -60,14 +61,15 @@ runs:
         $Response = $(wsl --distribution ${Env:WSL_DISTRO_NAME} --user root curl -sS --unix-socket /run/snapd.socket http://localhost/v2/find?name=${Env:SNAP_NAME}) | ConvertFrom-Json
         $SnapRevision = $Response.result[0].channels."${Env:SNAP_CHANNEL}".revision
         Add-Content -LiteralPath ${Env:GITHUB_OUTPUT} -Value "snap-revision=${SnapRevision}"
+        Add-Content -LiteralPath ${Env:GITHUB_ENV} -Value "SNAP_REVISION=${SnapRevision}"
         Write-Output "Current revision of snap ${Env:SNAP_NAME} in channel ${Env:SNAP_CHANNEL} is ${SnapRevision}."
     - name: Cache ${{ inputs.snap-name }}
       id: cache-snap
       uses: actions/cache@v4
       with:
         path: |
-          ${{ inputs.snaps-dir }}/${{ inputs.snap-name }}_${{ inputs.snap-revision && inputs.snap-revision || steps.query-store.outputs.snap-revision }}.snap
-          ${{ inputs.snaps-dir }}/${{ inputs.snap-name }}_${{ inputs.snap-revision && inputs.snap-revision || steps.query-store.outputs.snap-revision }}.assert
+          ${{ inputs.snaps-dir }}/${{ inputs.snap-name }}_${{ env.SNAP_REVISION }}.snap
+          ${{ inputs.snaps-dir }}/${{ inputs.snap-name }}_${{ env.SNAP_REVISION }}.assert
         key: snaps/${{ inputs.snap-name }}-${{ inputs.snap-revision && inputs.snap-revision || steps.query-store.outputs.snap-revision }}
     - name: Download ${{ inputs.snap-name }}
       if: ${{ steps.cache-snap.outputs.cache-hit != 'true' }}
