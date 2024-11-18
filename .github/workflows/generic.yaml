@@ -118,132 +118,9 @@ jobs:
           Set-StrictMode -version latest
           wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
 
-      - name: Terminate ${{ inputs.distro-name }} WSL instance
-        if: always()
+      - name: ls
         run: |
-          Set-StrictMode -version latest
-          Write-Output "Terminating ${{ inputs.distro-name }} WSL instance..."
-          $DistroName = '${{ inputs.wsl-distro-name }}'
-
-          Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate $DistroName"
-          Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--unregister $DistroName"
-
-  docker:
-    name: "Smoke test with \"docker\" snap"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install WSL
-        uses: ./.github/actions/install-wsl
-
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
-        id: setup-distro
-        uses: ./.github/actions/setup-distro
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
-          wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
-          wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
-
-      - name: Install snapd snap from a channel
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision == 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-channel: ${{ inputs.snapd-snap-channel }}
-
-      - name: Install specific snapd snap revision
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision != 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-revision: ${{ inputs.snapd-snap-revision }}
-
-      - name: Hold all snap refreshes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
-
-      - name: Install core22 snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: core22
-
-      - name: Install docker snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: docker
-
-      - name: Cache ubuntu:24.04 container image
-        id: cache-container-image
-        uses: actions/cache@v4
-        with:
-          path: ubuntu-24.04.tar.gz
-          key: oci/ubuntu:24.04
-
-      - name: Inspect status of docker service
-        env:
-          SNAP_NAME: docker
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} --help
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snap.docker.dockerd.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap services
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap logs ${Env:SNAP_NAME}
-
-      - name: Pull ubuntu:24.04 container image
-        if: ${{ steps.cache-container-image.outputs.cache-hit != 'true' }}
-        env:
-          SNAP_NAME: docker
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          WSL_DISTRO_USER: user ## TODO: use input from distro setup job
-          IMAGE_TAG: "ubuntu:24.04"
-          IMAGE_FILE: "ubuntu-24.04.tar.gz"
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} pull ${Env:IMAGE_TAG}
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} save --output ${Env:IMAGE_FILE} ${Env:IMAGE_TAG}
-
-      - name: Import ubuntu:24.04 container image
-        if: ${{ steps.cache-container-image.outputs.cache-hit == 'true' }}
-        env:
-          SNAP_NAME: docker
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          WSL_DISTRO_USER: user ## TODO: use input from distro setup job
-          IMAGE_TAG: "ubuntu:24.04"
-          IMAGE_FILE: "ubuntu-24.04.tar.gz"
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} load --input ${Env:IMAGE_FILE}
-
-      - name: Run hello docker container
-        env:
-          SNAP_NAME: docker
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          WSL_DISTRO_USER: user ## TODO: use input from distro setup job
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Running cat /etc/os-release from ubuntu:24.04."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run docker run --rm ubuntu:24.04 cat /etc/os-release
-          if ((wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd '~' --exec snap run ${Env:SNAP_NAME} run --rm ubuntu:24.04 cat /etc/os-release | Select-String -NoEmphasis -CaseSensitive -Raw -Pattern '^VERSION_ID=') -ne 'VERSION_ID="24.04"') {
-            Write-Error "Expected to see VERSION_ID=... for Ubuntu 24.04."
-            Exit 1
-          }
-
-      - name: Inspect snap changes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
+          ls snaps
 
       - name: Terminate ${{ inputs.distro-name }} WSL instance
         if: always()
@@ -255,275 +132,402 @@ jobs:
           Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate $DistroName"
           Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--unregister $DistroName"
 
-  snapcraft-lxd:
-    name: "Smoke test with \"snapcraft\" and \"lxd\" snaps"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+  # docker:
+  #   name: "Smoke test with \"docker\" snap"
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Install WSL
-        uses: ./.github/actions/install-wsl
+  #     - name: Install WSL
+  #       uses: ./.github/actions/install-wsl
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
-        id: setup-distro
-        uses: ./.github/actions/setup-distro
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
-          wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
-          wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
+  #     - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
+  #       id: setup-distro
+  #       uses: ./.github/actions/setup-distro
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
+  #         wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
+  #         wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
 
-      - name: Install snapd snap from a channel
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision == 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-channel: ${{ inputs.snapd-snap-channel }}
+  #     - name: Install snapd snap from a channel
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision == 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-channel: ${{ inputs.snapd-snap-channel }}
 
-      - name: Install specific snapd snap revision
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision != 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-revision: ${{ inputs.snapd-snap-revision }}
+  #     - name: Install specific snapd snap revision
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision != 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-revision: ${{ inputs.snapd-snap-revision }}
 
-      - name: Hold all snap refreshes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
+  #     - name: Hold all snap refreshes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
 
-      - name: Install core22 snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: core22
+  #     - name: Install core22 snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: core22
 
-      - name: Install lxd snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: lxd
+  #     - name: Install docker snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: docker
 
-      - name: Initialize lxd
-        env:
-          SNAP_NAME: lxd
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Initializing LXD..."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} init --auto
+  #     - name: Cache ubuntu:24.04 container image
+  #       id: cache-container-image
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: ubuntu-24.04.tar.gz
+  #         key: oci/ubuntu:24.04
 
-      - name: Install snapcraft snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapcraft
-          snap-classic-confinement: true
+  #     - name: Inspect status of docker service
+  #       env:
+  #         SNAP_NAME: docker
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} --help
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snap.docker.dockerd.service
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap services
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap logs ${Env:SNAP_NAME}
 
-      - name: Use snapcraft to build a simple snap
-        env:
-          SNAP_NAME: snapcraft
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          WSL_DISTRO_USER: user ## TODO: use input from distro setup job
-          WSL_WORKSPACE_PATH: ${{ steps.setup-distro.outputs.wsl-workspace-path }}
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Running copying smoke test snapcraft project into WSL."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~ cp -a ${Env:WSL_WORKSPACE_PATH}/test-snapd-wsl .
-          Write-Output "Building smoke test snapcraft project inside WSL."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~/test-snapd-wsl/ snap run ${Env:SNAP_NAME} --verbose
-          wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~/test-snapd-wsl/ ls -l
+  #     - name: Pull ubuntu:24.04 container image
+  #       if: ${{ steps.cache-container-image.outputs.cache-hit != 'true' }}
+  #       env:
+  #         SNAP_NAME: docker
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         WSL_DISTRO_USER: user ## TODO: use input from distro setup job
+  #         IMAGE_TAG: "ubuntu:24.04"
+  #         IMAGE_FILE: "ubuntu-24.04.tar.gz"
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} pull ${Env:IMAGE_TAG}
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} save --output ${Env:IMAGE_FILE} ${Env:IMAGE_TAG}
 
-      - name: Install locally built snap
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          WSL_DISTRO_USER: user ## TODO: use input from distro setup job
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Installing locally built snap..."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap install --dangerous ~${Env:WSL_DISTRO_USER}/test-snapd-wsl/test-snapd-wsl_1.0.0_amd64.snap
+  #     - name: Import ubuntu:24.04 container image
+  #       if: ${{ steps.cache-container-image.outputs.cache-hit == 'true' }}
+  #       env:
+  #         SNAP_NAME: docker
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         WSL_DISTRO_USER: user ## TODO: use input from distro setup job
+  #         IMAGE_TAG: "ubuntu:24.04"
+  #         IMAGE_FILE: "ubuntu-24.04.tar.gz"
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} load --input ${Env:IMAGE_FILE}
 
-      - name: Run locally-built snap
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-          SNAP_NAME: test-snapd-wsl
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Running ${Env:SNAP_NAME} application."
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME}
-          if ((wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME}) -notlike 'Hello World (from snapcraft)') {
-            Write-Error "Cannot run snap ${Env:SNAP_NAME} application."
-            exit 1
-          }
+  #     - name: Run hello docker container
+  #       env:
+  #         SNAP_NAME: docker
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         WSL_DISTRO_USER: user ## TODO: use input from distro setup job
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Running cat /etc/os-release from ubuntu:24.04."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run docker run --rm ubuntu:24.04 cat /etc/os-release
+  #         if ((wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd '~' --exec snap run ${Env:SNAP_NAME} run --rm ubuntu:24.04 cat /etc/os-release | Select-String -NoEmphasis -CaseSensitive -Raw -Pattern '^VERSION_ID=') -ne 'VERSION_ID="24.04"') {
+  #           Write-Error "Expected to see VERSION_ID=... for Ubuntu 24.04."
+  #           Exit 1
+  #         }
 
-      - name: Inspect snap changes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
+  #     - name: Inspect snap changes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
 
-      - name: Terminate ${{ inputs.distro-name }} WSL instance
-        if: always()
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Terminating ${{ inputs.distro-name }} WSL instance..."
-          $DistroName = '${{ inputs.wsl-distro-name }}'
+  #     - name: Terminate ${{ inputs.distro-name }} WSL instance
+  #       if: always()
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Terminating ${{ inputs.distro-name }} WSL instance..."
+  #         $DistroName = '${{ inputs.wsl-distro-name }}'
 
-          Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate $DistroName"
-          Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--unregister $DistroName"
+  #         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate $DistroName"
+  #         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--unregister $DistroName"
 
-  hello-world_evil:
-    name: "Smoke test with \"hello-world\" snap"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+  # snapcraft-lxd:
+  #   name: "Smoke test with \"snapcraft\" and \"lxd\" snaps"
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Cache custom kernel image
-        id: cache-kernel-image
-        uses: actions/cache@v4
-        with:
-          path: vmlinux-wsl2-snapd-x86_64
-          key: vmlinux-wsl2-snapd-x86_64
+  #     - name: Install WSL
+  #       uses: ./.github/actions/install-wsl
 
-      - name: Download a custom kernel
-        if: ${{ steps.cache-kernel-image.outputs.cache-hit != 'true' }}
-        run: |
-          Set-StrictMode -version latest
-          $ProgressPreference = 'SilentlyContinue'
-          Write-Output "Downloading a custom linux kernel..."
-          Invoke-WebRequest -Uri "https://github.com/diddlesnaps/WSL2-Linux-Kernel/releases/download/linux-msft-snapd-5.15.146.1/vmlinux-wsl2-snapd-x86_64" -OutFile "vmlinux-wsl2-snapd-x86_64" -UseBasicParsing
-          if ( ! $? ) {
-            exit 1
-          }
+  #     - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
+  #       id: setup-distro
+  #       uses: ./.github/actions/setup-distro
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
+  #         wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
+  #         wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
 
-      - name: Install WSL
-        uses: ./.github/actions/install-wsl
-        with:
-          wslconfig-vm-idle-timeout: -1
-          wslconfig-kernel: ${{ github.workspace }}\vmlinux-wsl2-snapd-x86_64
-          wslconfig-kernel-command-line: security=apparmor
+  #     - name: Install snapd snap from a channel
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision == 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-channel: ${{ inputs.snapd-snap-channel }}
 
-      - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
-        id: setup-distro
-        uses: ./.github/actions/setup-distro
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
-          wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
-          wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
+  #     - name: Install specific snapd snap revision
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision != 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-revision: ${{ inputs.snapd-snap-revision }}
 
-      - name: Inspect version of snapd before installing snapd snap
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap version
+  #     - name: Hold all snap refreshes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
 
-      - name: Install snapd snap from a channel
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision == 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-channel: ${{ inputs.snapd-snap-channel }}
+  #     - name: Install core22 snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: core22
 
-      - name: Install specific snapd snap revision
-        uses: ./.github/actions/install-snap
-        if: ${{ inputs.snapd-snap-revision != 0 }}
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: snapd
-          snap-revision: ${{ inputs.snapd-snap-revision }}
+  #     - name: Install lxd snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: lxd
 
-      - name: Inspect version of snapd after installing snapd snap
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap version
+  #     - name: Initialize lxd
+  #       env:
+  #         SNAP_NAME: lxd
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Initializing LXD..."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME} init --auto
 
-      - name: Hold all snap refreshes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
+  #     - name: Install snapcraft snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapcraft
+  #         snap-classic-confinement: true
 
-      - name: Mount securityfs, start apparmor and restart snapd
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          # XXX: This probably papers over a bug elsewhere.
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl daemon-reload
-          # Show interesting things.
-          wsl --distribution ${Env:WSL_DISTRO_NAME} uname -a
-          wsl --distribution ${Env:WSL_DISTRO_NAME} mount -t securityfs securityfs /sys/kernel/security
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start snapd.apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl restart snapd.service
+  #     - name: Use snapcraft to build a simple snap
+  #       env:
+  #         SNAP_NAME: snapcraft
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         WSL_DISTRO_USER: user ## TODO: use input from distro setup job
+  #         WSL_WORKSPACE_PATH: ${{ steps.setup-distro.outputs.wsl-workspace-path }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Running copying smoke test snapcraft project into WSL."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~ cp -a ${Env:WSL_WORKSPACE_PATH}/test-snapd-wsl .
+  #         Write-Output "Building smoke test snapcraft project inside WSL."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~/test-snapd-wsl/ snap run ${Env:SNAP_NAME} --verbose
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} --user ${Env:WSL_DISTRO_USER} --cd ~/test-snapd-wsl/ ls -l
 
-      - name: Inspect the state of AppArmor
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/self/mountinfo
-          wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/cmdline
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-enabled
-          wsl --distribution ${Env:WSL_DISTRO_NAME} aa-status
-          wsl --distribution ${Env:WSL_DISTRO_NAME} ls -l /sys/kernel/security/apparmor/
-          wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snapd.apparmor.service
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap debug sandbox-features
+  #     - name: Install locally built snap
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         WSL_DISTRO_USER: user ## TODO: use input from distro setup job
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Installing locally built snap..."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap install --dangerous ~${Env:WSL_DISTRO_USER}/test-snapd-wsl/test-snapd-wsl_1.0.0_amd64.snap
 
-      - name: Install core snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: core
+  #     - name: Run locally-built snap
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #         SNAP_NAME: test-snapd-wsl
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Running ${Env:SNAP_NAME} application."
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME}
+  #         if ((wsl --distribution ${Env:WSL_DISTRO_NAME} snap run ${Env:SNAP_NAME}) -notlike 'Hello World (from snapcraft)') {
+  #           Write-Error "Cannot run snap ${Env:SNAP_NAME} application."
+  #           exit 1
+  #         }
 
-      - name: Install hello-world snap
-        uses: ./.github/actions/install-snap
-        with:
-          wsl-distro-name: ${{ inputs.wsl-distro-name }}
-          snap-name: hello-world
+  #     - name: Inspect snap changes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
 
-      - name: Run hello-world.evil snap application
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Running hello-world.evil application."
-          $output = wsl --distribution ${Env:WSL_DISTRO_NAME} --exec sh -c "snap run hello-world.evil 2>&1 || true" | Out-String -Stream
-          Write-Output $output
+  #     - name: Terminate ${{ inputs.distro-name }} WSL instance
+  #       if: always()
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Terminating ${{ inputs.distro-name }} WSL instance..."
+  #         $DistroName = '${{ inputs.wsl-distro-name }}'
 
-          # NOTE: $output is an array and -notlike would match all the other items.
-          if (!($output -like "*/myevil.txt: Permission denied")) {
-            Write-Error "Expected failure but didn't see any."
-            exit 1
-          } else {
-            Write-Output "Basic snap confinement is in place"
-          }
+  #         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--terminate $DistroName"
+  #         Start-Process -NoNewWindow -Wait -FilePath "wsl.exe" -ArgumentList "--unregister $DistroName"
 
-      - name: Inspect snap changes
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
+  # hello-world_evil:
+  #   name: "Smoke test with \"hello-world\" snap"
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Terminate ${{ inputs.distro-name }} WSL instance
-        if: always()
-        env:
-          WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
-        run: |
-          Set-StrictMode -version latest
-          Write-Output "Terminating ${Env:WSL_DISTRO_NAME} WSL instance..."
-          wsl --terminate ${Env:WSL_DISTRO_NAME}
-          wsl --unregister ${Env:WSL_DISTRO_NAME}
+  #     - name: Cache custom kernel image
+  #       id: cache-kernel-image
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: vmlinux-wsl2-snapd-x86_64
+  #         key: vmlinux-wsl2-snapd-x86_64
+
+  #     - name: Download a custom kernel
+  #       if: ${{ steps.cache-kernel-image.outputs.cache-hit != 'true' }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         $ProgressPreference = 'SilentlyContinue'
+  #         Write-Output "Downloading a custom linux kernel..."
+  #         Invoke-WebRequest -Uri "https://github.com/diddlesnaps/WSL2-Linux-Kernel/releases/download/linux-msft-snapd-5.15.146.1/vmlinux-wsl2-snapd-x86_64" -OutFile "vmlinux-wsl2-snapd-x86_64" -UseBasicParsing
+  #         if ( ! $? ) {
+  #           exit 1
+  #         }
+
+  #     - name: Install WSL
+  #       uses: ./.github/actions/install-wsl
+  #       with:
+  #         wslconfig-vm-idle-timeout: -1
+  #         wslconfig-kernel: ${{ github.workspace }}\vmlinux-wsl2-snapd-x86_64
+  #         wslconfig-kernel-command-line: security=apparmor
+
+  #     - name: Import ${{ inputs.wsl-distro-name }} into WSL and initialize it
+  #       id: setup-distro
+  #       uses: ./.github/actions/setup-distro
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         wsl-rootfs-url: ${{ inputs.wsl-rootfs-url }}
+  #         wsl-rootfs-file: ${{ inputs.wsl-rootfs-file }}
+  #         wsl-enable-systemd: ${{ inputs.wsl-enable-systemd }}
+
+  #     - name: Inspect version of snapd before installing snapd snap
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap version
+
+  #     - name: Install snapd snap from a channel
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision == 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-channel: ${{ inputs.snapd-snap-channel }}
+
+  #     - name: Install specific snapd snap revision
+  #       uses: ./.github/actions/install-snap
+  #       if: ${{ inputs.snapd-snap-revision != 0 }}
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: snapd
+  #         snap-revision: ${{ inputs.snapd-snap-revision }}
+
+  #     - name: Inspect version of snapd after installing snapd snap
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap version
+
+  #     - name: Hold all snap refreshes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap refresh --hold
+
+  #     - name: Mount securityfs, start apparmor and restart snapd
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         # XXX: This probably papers over a bug elsewhere.
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl daemon-reload
+  #         # Show interesting things.
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} uname -a
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} mount -t securityfs securityfs /sys/kernel/security
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start apparmor.service
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl start snapd.apparmor.service
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl restart snapd.service
+
+  #     - name: Inspect the state of AppArmor
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/self/mountinfo
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} cat /proc/cmdline
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status apparmor.service
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} aa-enabled
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} aa-status
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} ls -l /sys/kernel/security/apparmor/
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} systemctl status snapd.apparmor.service
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap debug sandbox-features
+
+  #     - name: Install core snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: core
+
+  #     - name: Install hello-world snap
+  #       uses: ./.github/actions/install-snap
+  #       with:
+  #         wsl-distro-name: ${{ inputs.wsl-distro-name }}
+  #         snap-name: hello-world
+
+  #     - name: Run hello-world.evil snap application
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Running hello-world.evil application."
+  #         $output = wsl --distribution ${Env:WSL_DISTRO_NAME} --exec sh -c "snap run hello-world.evil 2>&1 || true" | Out-String -Stream
+  #         Write-Output $output
+
+  #         # NOTE: $output is an array and -notlike would match all the other items.
+  #         if (!($output -like "*/myevil.txt: Permission denied")) {
+  #           Write-Error "Expected failure but didn't see any."
+  #           exit 1
+  #         } else {
+  #           Write-Output "Basic snap confinement is in place"
+  #         }
+
+  #     - name: Inspect snap changes
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         wsl --distribution ${Env:WSL_DISTRO_NAME} snap changes
+
+  #     - name: Terminate ${{ inputs.distro-name }} WSL instance
+  #       if: always()
+  #       env:
+  #         WSL_DISTRO_NAME: ${{ inputs.wsl-distro-name }}
+  #       run: |
+  #         Set-StrictMode -version latest
+  #         Write-Output "Terminating ${Env:WSL_DISTRO_NAME} WSL instance..."
+  #         wsl --terminate ${Env:WSL_DISTRO_NAME}
+  #         wsl --unregister ${Env:WSL_DISTRO_NAME}
